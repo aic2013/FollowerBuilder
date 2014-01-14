@@ -1,6 +1,5 @@
 package aic2013.follower;
 
-import aic2013.follower.entities.TwitterUser;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -10,6 +9,7 @@ import java.io.InputStreamReader;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.JMSException;
@@ -24,12 +24,18 @@ import javax.persistence.Persistence;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.neo4j.jdbc.Driver;
 import org.neo4j.jdbc.Neo4jConnection;
+
 import twitter4j.Status;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
 import twitter4j.TwitterFactory;
 import twitter4j.conf.PropertyConfiguration;
 import twitter4j.json.DataObjectFactory;
+import aic2013.common.entities.TwitterUser;
+import aic2013.common.service.ClosedException;
+import aic2013.common.service.Neo4jService;
+import aic2013.common.service.Neo4jUnitOfWork;
+import aic2013.common.service.Processor;
 
 public class Consumer implements MessageListener {
 

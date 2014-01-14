@@ -5,16 +5,12 @@
  */
 package aic2013.follower;
 
-import aic2013.follower.entities.TwitterUser;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import twitter4j.IDs;
-import twitter4j.PagableResponseList;
-import twitter4j.RateLimitStatus;
 import twitter4j.Twitter;
 import twitter4j.TwitterException;
-import twitter4j.User;
+import aic2013.common.entities.TwitterUser;
+import aic2013.common.service.ClosedException;
+import aic2013.common.service.Processor;
 
 /**
  *

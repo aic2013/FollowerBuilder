@@ -5,10 +5,11 @@
  */
 package aic2013.follower;
 
-import aic2013.follower.entities.TwitterUser;
 import javax.persistence.EntityExistsException;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
+
+import aic2013.common.entities.TwitterUser;
 
 /**
  *

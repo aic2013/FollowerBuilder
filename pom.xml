@@ -77,6 +77,11 @@
             <artifactId>activemq-core</artifactId>
             <version>5.7.0</version>
         </dependency>
+        <dependency>
+            <groupId>aic2013</groupId>
+            <artifactId>common</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
