@@ -5,9 +5,13 @@
  */
 package aic2013.follower;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import javax.persistence.EntityExistsException;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
+import javax.persistence.PersistenceException;
 
 import aic2013.common.entities.TwitterUser;
 
@@ -44,22 +48,30 @@ public class UserService {
             }
         } catch (EntityExistsException ex) {
             success = false;
-            
-            if (tx != null) {
+
+            if (tx != null && tx.isActive()) {
+                tx.setRollbackOnly();
+            }
+        } catch (PersistenceException ex) {
+            success = false;
+
+            if (tx != null && tx.isActive()) {
                 tx.setRollbackOnly();
             }
         } catch (RuntimeException ex) {
-            if (tx != null) {
+            Logger.getLogger(UserService.class.getName()).log(Level.SEVERE, null, ex);
+
+            if (tx != null && tx.isActive()) {
                 tx.setRollbackOnly();
             }
-            
+
             throw ex;
         } finally {
             if (tx != null && started && tx.isActive() && tx.getRollbackOnly()) {
                 tx.rollback();
             }
         }
-        
+
         return success;
     }
 
