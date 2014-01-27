@@ -5,9 +5,6 @@
  */
 package aic2013.follower;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import javax.persistence.EntityExistsException;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
@@ -53,14 +50,7 @@ public class UserService {
             if (tx != null && tx.isActive()) {
                 tx.setRollbackOnly();
             }
-        } catch (PersistenceException ex) {
-            success = false;
-            if (tx != null && tx.isActive()) {
-                tx.setRollbackOnly();
-            }
         } catch (RuntimeException ex) {
-            Logger.getLogger(UserService.class.getName()).log(Level.SEVERE, null, ex);
-
             if (tx != null && tx.isActive()) {
                 tx.setRollbackOnly();
             }
