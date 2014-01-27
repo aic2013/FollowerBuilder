@@ -41,12 +41,13 @@ public class UserService {
             }
 
             em.persist(user);
+            em.flush();
 
             if (started) {
                 tx.commit();
                 success = true;
             }
-        } catch (EntityExistsException ex) {
+        } catch(PersistenceException e){
             success = false;
 
             if (tx != null && tx.isActive()) {
@@ -54,7 +55,6 @@ public class UserService {
             }
         } catch (PersistenceException ex) {
             success = false;
-
             if (tx != null && tx.isActive()) {
                 tx.setRollbackOnly();
             }
