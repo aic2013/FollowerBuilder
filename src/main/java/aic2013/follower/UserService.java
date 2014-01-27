@@ -8,6 +8,7 @@ package aic2013.follower;
 import javax.persistence.EntityExistsException;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityTransaction;
+import javax.persistence.PersistenceException;
 
 import aic2013.common.entities.TwitterUser;
 
@@ -35,21 +36,22 @@ public class UserService {
                 started = true;
                 tx.begin();
             }
-
+            
             em.persist(user);
+            em.flush();
 
             if (started) {
                 tx.commit();
                 success = true;
             }
-        } catch (EntityExistsException ex) {
+        } catch(PersistenceException e){
             success = false;
             
-            if (tx != null) {
+            if (tx != null && tx.isActive()) {
                 tx.setRollbackOnly();
             }
         } catch (RuntimeException ex) {
-            if (tx != null) {
+            if (tx != null && tx.isActive()) {
                 tx.setRollbackOnly();
             }
             

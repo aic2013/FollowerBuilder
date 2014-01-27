@@ -37,7 +37,7 @@ import aic2013.common.service.Processor;
 
 public class FollowerBuilder {
 
-    private static final String BROKER_URL = "tcp://localhost:61616";
+    private static final String BROKER_URL = "amqp://localhost:5672/test";
     private static final String FOLLOWS_QUEUE_NAME = "tweet-follows";
     private static final String NEO4J_JDBC_URL = "jdbc:neo4j://localhost:7474";
 
@@ -101,6 +101,8 @@ public class FollowerBuilder {
             TwitterDataAccess twitterDataAccess = new TwitterDataAccess(twitter);
 
             ConnectionFactory factory = new ConnectionFactory();
+            factory.setUsername("test");
+            factory.setPassword("test");
             factory.setUri(brokerUrl);
             consumer = new FollowerBuilder(userService, neo4jService, twitterDataAccess, factory, followsQueueName);
 
