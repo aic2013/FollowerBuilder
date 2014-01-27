@@ -67,77 +67,73 @@ public class FollowerBuilder {
         String followsQueueName = getProperty("FOLLOWS_QUEUE_NAME", FOLLOWS_QUEUE_NAME);
         String neo4jJdbcUrl = getProperty("NEO4J_JDBC_URL", NEO4J_JDBC_URL);
 
-        FollowerBuilder consumer = null;
-        EntityManagerFactory emf = null;
-        Neo4jConnection neo4j = null;
-        Twitter twitter = null;
+        // Database configuration
+        Properties prop = new Properties();
+        File propertiesFile = new File("hibernate.properties");
 
-        try {
-            // Database configuration
-            Properties prop = new Properties();
-            File propertiesFile = new File("hibernate.properties");
+        if (propertiesFile.exists()) {
+            // Use hibernate properties of the current working directory if exists
+            prop.load(new FileInputStream(propertiesFile));
+        } else {
+            // Fallback to hibernate properties of the classpath
+            prop.load(FollowerBuilder.class.getClassLoader()
+                .getResourceAsStream("hibernate.properties"));
+            propertiesFile = null;
+        }
 
-            if (propertiesFile.exists()) {
-                // Use hibernate properties of the current working directory if exists
-                prop.load(new FileInputStream(propertiesFile));
-            } else {
-                // Fallback to hibernate properties of the classpath
-                prop.load(FollowerBuilder.class.getClassLoader()
-                    .getResourceAsStream("hibernate.properties"));
-                propertiesFile = null;
-            }
+        // RDBMS
+        final EntityManagerFactory emf = Persistence.createEntityManagerFactory("twitterdb", prop);
+        // Neo4j
+        final Neo4jConnection neo4j = new Driver().connect(neo4jJdbcUrl, new Properties());
+        neo4j.setAutoCommit(true);//false);
+        // Twitter
+        final Twitter twitter = TwitterFactory.getSingleton();
 
-            // RDBMS
-            emf = Persistence.createEntityManagerFactory("twitterdb", prop);
-            // Neo4j
-            neo4j = new Driver().connect(neo4jJdbcUrl, new Properties());
-            neo4j.setAutoCommit(true);//false);
-            // Twitter
-            twitter = TwitterFactory.getSingleton();
+        // Services
+        UserService userService = new UserService(emf.createEntityManager());
+        Neo4jService neo4jService = new Neo4jService(neo4j);
+        TwitterDataAccess twitterDataAccess = new TwitterDataAccess(twitter);
 
-            // Services
-            UserService userService = new UserService(emf.createEntityManager());
-            Neo4jService neo4jService = new Neo4jService(neo4j);
-            TwitterDataAccess twitterDataAccess = new TwitterDataAccess(twitter);
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setUsername("test");
+        factory.setPassword("test");
+        factory.setUri(brokerUrl);
+        final FollowerBuilder consumer = new FollowerBuilder(userService, neo4jService, twitterDataAccess, factory, followsQueueName);
 
-            ConnectionFactory factory = new ConnectionFactory();
-            factory.setUsername("test");
-            factory.setPassword("test");
-            factory.setUri(brokerUrl);
-            consumer = new FollowerBuilder(userService, neo4jService, twitterDataAccess, factory, followsQueueName);
-
-            System.out.println("Started follwer consumer with the following configuration:");
-            System.out.println("\tBroker: " + brokerUrl);
-            System.out.println("\t\tFollows queue name: " + followsQueueName);
-            System.out.println("\tJPA-Unit: twitterdb");
-            System.out.println("\t\thibernate.properties: " + (propertiesFile == null ? "from classpath" : propertiesFile
-                .getAbsolutePath()));
-            System.out.println("\tNeo4j: " + neo4jJdbcUrl);
-            System.out.println();
-            System.out.println("To shutdown the application please type 'exit'.");
-
-            BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-            String command;
-
-            while ((command = br.readLine()) != null) {
-                if ("exit".equals(command)) {
-                    break;
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                if (consumer != null) {
+                    consumer.close();
                 }
-            }
+                if (emf != null && emf.isOpen()) {
+                    emf.close();
+                }
+                if (neo4j != null) {
+                    try {
+                        neo4j.close();
+                    } catch(Exception e) {}
+                }
+                if (twitter != null) {
+                    twitter.shutdown();
+                }
 
-        } finally {
-            if (consumer != null) {
-                consumer.close();
+                System.out.println("Exiting");
+                System.exit(0);
             }
-            if (emf != null && emf.isOpen()) {
-                emf.close();
-            }
-            if (neo4j != null) {
-                neo4j.close();
-            }
-            if (twitter != null) {
-                twitter.shutdown();
-            }
+        });
+
+        System.out.println("Started follwer consumer with the following configuration:");
+        System.out.println("\tBroker: " + brokerUrl);
+        System.out.println("\t\tFollows queue name: " + followsQueueName);
+        System.out.println("\tJPA-Unit: twitterdb");
+        System.out.println("\t\thibernate.properties: " + (propertiesFile == null ? "from classpath" : propertiesFile.getAbsolutePath()));
+        System.out.println("\tNeo4j: " + neo4jJdbcUrl);
+        System.out.println();
+        System.out.println("To shutdown the application please type 'exit'.");
+
+        while (true) {
+            Thread.sleep(1000);
         }
     }
 
