@@ -13,9 +13,6 @@ import java.util.logging.Logger;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
 
-import org.neo4j.jdbc.Driver;
-import org.neo4j.jdbc.Neo4jConnection;
-
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Connection;
@@ -39,10 +36,8 @@ public class FollowerBuilder {
 
     private static final String BROKER_URL = "amqp://localhost:5672/test";
     private static final String FOLLOWS_QUEUE_NAME = "tweet-follows";
-    private static final String NEO4J_JDBC_URL = "jdbc:neo4j://localhost:7474";
 
     private final UserService userService;
-    private final Neo4jService neo4jService;
     private final TwitterDataAccess twitterDataAccess;
     private final ConnectionFactory factory;
     private final Connection connection;
@@ -65,7 +60,6 @@ public class FollowerBuilder {
     public static void main(String[] args) throws Exception {
         String brokerUrl = getProperty("BROKER_URL", BROKER_URL);
         String followsQueueName = getProperty("FOLLOWS_QUEUE_NAME", FOLLOWS_QUEUE_NAME);
-        String neo4jJdbcUrl = getProperty("NEO4J_JDBC_URL", NEO4J_JDBC_URL);
 
         // Database configuration
         Properties prop = new Properties();
@@ -83,22 +77,19 @@ public class FollowerBuilder {
 
         // RDBMS
         final EntityManagerFactory emf = Persistence.createEntityManagerFactory("twitterdb", prop);
-        // Neo4j
-        final Neo4jConnection neo4j = new Driver().connect(neo4jJdbcUrl, new Properties());
-        neo4j.setAutoCommit(true);//false);
         // Twitter
         final Twitter twitter = TwitterFactory.getSingleton();
 
         // Services
         UserService userService = new UserService(emf.createEntityManager());
-        Neo4jService neo4jService = new Neo4jService(neo4j);
         TwitterDataAccess twitterDataAccess = new TwitterDataAccess(twitter);
 
         ConnectionFactory factory = new ConnectionFactory();
         factory.setUsername("test");
         factory.setPassword("test");
         factory.setUri(brokerUrl);
-        final FollowerBuilder consumer = new FollowerBuilder(userService, neo4jService, twitterDataAccess, factory, followsQueueName);
+
+        final FollowerBuilder consumer = new FollowerBuilder(userService, twitterDataAccess, factory, followsQueueName);
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
@@ -108,11 +99,6 @@ public class FollowerBuilder {
                 }
                 if (emf != null && emf.isOpen()) {
                     emf.close();
-                }
-                if (neo4j != null) {
-                    try {
-                        neo4j.close();
-                    } catch(Exception e) {}
                 }
                 if (twitter != null) {
                     twitter.shutdown();
@@ -128,7 +114,6 @@ public class FollowerBuilder {
         System.out.println("\t\tFollows queue name: " + followsQueueName);
         System.out.println("\tJPA-Unit: twitterdb");
         System.out.println("\t\thibernate.properties: " + (propertiesFile == null ? "from classpath" : propertiesFile.getAbsolutePath()));
-        System.out.println("\tNeo4j: " + neo4jJdbcUrl);
         System.out.println();
         System.out.println("To shutdown the application please type 'exit'.");
 
@@ -137,10 +122,9 @@ public class FollowerBuilder {
         }
     }
 
-    public FollowerBuilder(UserService userService, Neo4jService neo4jService, TwitterDataAccess twitterDataAccess, ConnectionFactory factory, String queueName)
+    public FollowerBuilder(UserService userService, TwitterDataAccess twitterDataAccess, ConnectionFactory factory, String queueName)
         throws IOException {
         this.userService = userService;
-        this.neo4jService = neo4jService;
         this.twitterDataAccess = twitterDataAccess;
         this.factory = factory;
         connection = factory.newConnection();
@@ -155,9 +139,6 @@ public class FollowerBuilder {
     public void close() {
         if(twitterDataAccess != null) {
             twitterDataAccess.close();
-        }
-        if(neo4jService != null) {
-            neo4jService.close();
         }
         if (channel != null) {
             try {
@@ -181,19 +162,10 @@ public class FollowerBuilder {
             public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
                 try {
                     String message = new String(body);
-
                     final Status status = DataObjectFactory.createStatus(message);
                     final TwitterUser user = new TwitterUser(status.getUser());
 
-                    if (userService.persist(user)) {
-                        // If the user was actually added, do the neo4j stuff
-                        neo4jService.transactional(new Neo4jUnitOfWork() {
-                            @Override
-                            public void process() {
-                                neo4jService.createPersonIfAbsent(user);
-                            }
-                        });
-                    }
+                    userService.persist(user);
 
                     channel.basicAck(envelope.getDeliveryTag(), false);
                 } catch (TwitterException ex) {
